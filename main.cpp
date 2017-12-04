@@ -17,7 +17,7 @@ void threeChannels(Mat& img, Mat& red, Mat& green, Mat& blue, Mat* rgbArray);
 void huffman(Mat img);
 void sortHuffman(vector<PNode>& array);
 
-int dataLum[8][8] = {
+double dataLum[8][8] = {
         {16, 11, 10, 16, 24, 40, 51, 61},
         {12, 12, 14, 19, 26, 58, 60, 55},
         {14, 13, 16, 24, 40, 57, 69, 56},
@@ -37,7 +37,7 @@ int dataLum[8][8] = {
 //            {0, 0, 0, 0, 0, 0, 0, 0},
 //            {0, 0, 0, 0, 0, 0, 0, 0}
 //    };
-int dataChrom[8][8] = {
+double dataChrom[8][8] = {
         {17, 18, 24, 27, 99, 99, 99, 99},
         {18, 21, 26, 66, 99, 99, 99, 99},
         {24, 26, 56, 99, 99, 99, 99, 99},
@@ -138,8 +138,8 @@ void sortFreq(std::vector<int>& numbers, std::vector<int>& freq){
 void compress(Mat& img){
     //img.convertTo(img,CV_32F);
 //
-    Mat lum = Mat(8,8,CV_8UC1,&dataLum);
-    Mat chrom = Mat(8,8,CV_8UC1,&dataChrom);
+    Mat lum = Mat(8,8,CV_64FC1,&dataLum);
+    Mat chrom = Mat(8,8,CV_64FC1,&dataChrom);
 
     imshow("orig",img);
     waitKey();
@@ -156,12 +156,12 @@ void compress(Mat& img){
                 vector<Mat> outputChannels(channels.size());
                 for(int p=0;p<block.channels();p++){
                     Mat channelBlock = channels[p];
+                    channelBlock.convertTo(channelBlock,CV_64FC1);
                     subtract(channelBlock, 128.0, channelBlock);
-                    channelBlock.convertTo(channelBlock,CV_32F);
 
                     Mat blockDCT;
                     dct(channelBlock,channelBlock);
-                    channelBlock.convertTo(channelBlock,CV_8UC1);
+
                     if(p==0){
                         //luminance
                         divide(channelBlock,lum,channelBlock);
@@ -169,7 +169,7 @@ void compress(Mat& img){
                         divide(channelBlock,chrom,channelBlock);
                     }
                     add(channelBlock, 128.0, channelBlock);
-
+                    channelBlock.convertTo(channelBlock,CV_8UC1);
                     outputChannels[p] = channelBlock;
 
                 }
@@ -190,8 +190,8 @@ void compress(Mat& img){
 
 void de_Compress(Mat& img){
 
-    Mat lum = Mat(8,8,CV_8UC1,&dataLum);
-    Mat chrom = Mat(8,8,CV_8UC1,&dataChrom);
+    Mat lum = Mat(8,8,CV_64FC1,&dataLum);
+    Mat chrom = Mat(8,8,CV_64FC1,&dataChrom);
 
 
     for(int x=0;x<img.rows;x+=8){
@@ -204,7 +204,7 @@ void de_Compress(Mat& img){
                 vector<Mat> outputChannels(channels.size());
                 for(int p=0;p<block.channels();p++){
                     Mat channelBlock = channels[p];
-
+                    channelBlock.convertTo(channelBlock,CV_64FC1);
                     subtract(channelBlock, 128.0, channelBlock);
                     if(p==0){
                         //luminance
@@ -213,7 +213,7 @@ void de_Compress(Mat& img){
                         multiply(channelBlock,chrom,channelBlock);
                     }
 
-                    channelBlock.convertTo(channelBlock,CV_32F);
+
                     Mat blockDCT;
                     idct(channelBlock,blockDCT);
                     add(blockDCT, 128.0, blockDCT);
