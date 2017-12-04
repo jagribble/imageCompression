@@ -1,0 +1,3 @@
+/Users/G/Desktop/Year3/ImageAnalysis/ImageCompression/cmake-build-debug/CMakeFiles/rebuild_cache.dir
+/Users/G/Desktop/Year3/ImageAnalysis/ImageCompression/cmake-build-debug/CMakeFiles/edit_cache.dir
+/Users/G/Desktop/Year3/ImageAnalysis/ImageCompression/cmake-build-debug/CMakeFiles/ImageCompression.dir
