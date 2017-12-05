@@ -51,7 +51,7 @@ double dataChrom[8][8] = {
 int main() {
     std::cout << "Hello, World!" << std::endl;
    // Mat image = imread("../2.ppm",CV_LOAD_IMAGE_COLOR);
-    Mat image = imread("../fish.jpg",CV_LOAD_IMAGE_COLOR);
+    Mat image = imread("../test.jpg",CV_LOAD_IMAGE_COLOR);
     imshow("fire",image);
     waitKey();
     Mat rgbArray[3];
@@ -83,7 +83,10 @@ int main() {
 //        waitKey();
     }
     compress(image);
+
+    imwrite("../output.jpg",image);
     de_Compress(image);
+    imwrite("../decomp.jpg",image);
     dctImages[0].convertTo(dctImages[0],CV_8U);
 
 //    Mat smallImage = Mat(image,Rect(0,0,110,70));
@@ -193,6 +196,7 @@ void de_Compress(Mat& img){
     Mat lum = Mat(8,8,CV_64FC1,&dataLum);
     Mat chrom = Mat(8,8,CV_64FC1,&dataChrom);
 
+    imshow("into decompression",img);
 
     for(int x=0;x<img.rows;x+=8){
         for(int y=0;y<img.cols;y+=8){
@@ -271,6 +275,8 @@ void sortHuffman(vector<PNode>& array){
 void huffman(Mat img){
     std::vector<int> numbers =  std::vector<int>();
     std::vector<int> freq =  std::vector<int>();
+    // go through all the pixels in the image and get the value
+    // if the value is already stored then add 1 to it's frequency
     for(int x=0;x<img.rows;x++){
         for(int y=0;y<img.cols;y++){
             int value = int(img.at<uchar>(x,y));
@@ -289,6 +295,7 @@ void huffman(Mat img){
 
         }
     }
+    //sort the frquencies
     sortFreq(numbers,freq);
     std::cout<<"Vector size: "<<numbers.size() <<std::endl;
     std::cout << "________________"<<std::endl;
@@ -305,6 +312,22 @@ void huffman(Mat img){
     }
     cout<<"first in the array is vale=->"<<priorityQueue.at(0).value <<endl;
     sortHuffman(priorityQueue);
+    float totalValue = 0;
+    while(totalValue<1){
+        PNode left = priorityQueue.at(0);
+        PNode right = priorityQueue.at(1);
+        float newPriority = left.huffmanProbability + right.huffmanProbability;
+        PNode parentNode = PNode();
+        parentNode.huffmanProbability = newPriority;
+        parentNode.left = &left;
+        parentNode.right = &right;
+        priorityQueue.erase(priorityQueue.begin());
+        priorityQueue.at(0) = parentNode;
+        // when root node is made it will have priority 1
+        totalValue =newPriority;
+        cout<< "priority -->"<< newPriority <<endl;
+
+    }
 
 }
 

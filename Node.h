@@ -11,6 +11,8 @@ class PNode {
     public:
         int value;
         int frequency;
+        PNode *left;
+        PNode *right;
         string prefix;
         float huffmanProbability;
         PNode(int v,int f,int total);
