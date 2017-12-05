@@ -51,7 +51,7 @@ double dataChrom[8][8] = {
 int main() {
     std::cout << "Hello, World!" << std::endl;
    // Mat image = imread("../2.ppm",CV_LOAD_IMAGE_COLOR);
-    Mat image = imread("../test.jpg",CV_LOAD_IMAGE_COLOR);
+    Mat image = imread("../fish.jpg",CV_LOAD_IMAGE_COLOR);
     imshow("fire",image);
     waitKey();
     Mat rgbArray[3];
@@ -316,13 +316,15 @@ void huffman(Mat img){
     while(totalValue<1){
         PNode left = priorityQueue.at(0);
         PNode right = priorityQueue.at(1);
+        cout << "Left: "<<left.huffmanProbability<<" right: "<<right.huffmanProbability<<endl;
         float newPriority = left.huffmanProbability + right.huffmanProbability;
-        PNode parentNode = PNode();
-        parentNode.huffmanProbability = newPriority;
-        parentNode.left = &left;
-        parentNode.right = &right;
+        PNode *parentNode = new PNode();
+        parentNode->huffmanProbability = newPriority;
+        parentNode->left = &left;
+        parentNode->right = &right;
         priorityQueue.erase(priorityQueue.begin());
-        priorityQueue.at(0) = parentNode;
+        priorityQueue.at(0) = *parentNode;
+        sortHuffman(priorityQueue);
         // when root node is made it will have priority 1
         totalValue =newPriority;
         cout<< "priority -->"<< newPriority <<endl;
