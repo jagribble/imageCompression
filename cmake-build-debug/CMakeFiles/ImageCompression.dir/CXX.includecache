@@ -15,8 +15,6 @@ iostream
 -
 
 /Users/G/Desktop/Year3/ImageAnalysis/ImageCompression/main.cpp
-iostream
--
 opencv2/opencv.hpp
 -
 Node.h

@@ -6,6 +6,8 @@
 #define IMAGECOMPRESSION_NODE_H
 
 #include <iostream>
+
+
 using namespace std;
 class PNode {
     public:
@@ -17,6 +19,7 @@ class PNode {
         float huffmanProbability;
         PNode(int v,int f,int total);
         PNode();
+        PNode(int v, int f, PNode *l, PNode *r, string p, float h);
 };
 
 

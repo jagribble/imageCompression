@@ -1,9 +1,9 @@
-#include <iostream>
 #include <opencv2/opencv.hpp>
 #include "Node.h"
 #include <opencv2/highgui/highgui.hpp>
 
 using namespace cv;
+
 
 // dft
 Mat makeDFT(Mat I,const char *name);
@@ -15,6 +15,7 @@ void compress(Mat& img);
 void de_Compress(Mat& img);
 void threeChannels(Mat& img, Mat& red, Mat& green, Mat& blue, Mat* rgbArray);
 void huffman(Mat img);
+void addPrefix(PNode *root, String prefix);
 void sortHuffman(vector<PNode>& array);
 
 double dataLum[8][8] = {
@@ -50,8 +51,8 @@ double dataChrom[8][8] = {
 
 int main() {
     std::cout << "Hello, World!" << std::endl;
-   // Mat image = imread("../2.ppm",CV_LOAD_IMAGE_COLOR);
-    Mat image = imread("../fish.jpg",CV_LOAD_IMAGE_COLOR);
+    Mat image = imread("../2.ppm",CV_LOAD_IMAGE_COLOR);
+   // Mat image = imread("../fish.jpg",CV_LOAD_IMAGE_COLOR);
     imshow("fire",image);
     waitKey();
     Mat rgbArray[3];
@@ -83,7 +84,8 @@ int main() {
 //        waitKey();
     }
     compress(image);
-
+    Mat imageChannels[3];
+    split(image,imageChannels);
     imwrite("../output.jpg",image);
     de_Compress(image);
     imwrite("../decomp.jpg",image);
@@ -94,7 +96,8 @@ int main() {
 //    imshow("small block", smallImage);
 //    waitKey();
     //makeDFT(rgbArray[0],"dft");
-    huffman(dctImages[0]);
+
+    huffman(imageChannels[0]);
     return 0;
 }
 
@@ -181,7 +184,7 @@ void compress(Mat& img){
             }
 
         }
-        cout << x<<endl;
+      //  cout << x<<endl;
     }
 
 
@@ -231,7 +234,7 @@ void de_Compress(Mat& img){
             }
 
         }
-        cout << x<<endl;
+        //cout << x<<endl;
     }
     cvtColor(img,img,COLOR_YCrCb2BGR);
 
@@ -313,6 +316,7 @@ void huffman(Mat img){
     cout<<"first in the array is vale=->"<<priorityQueue.at(0).value <<endl;
     sortHuffman(priorityQueue);
     float totalValue = 0;
+    //make huffman encoding tree
     while(totalValue<1){
         PNode left = priorityQueue.at(0);
         PNode right = priorityQueue.at(1);
@@ -320,77 +324,33 @@ void huffman(Mat img){
         float newPriority = left.huffmanProbability + right.huffmanProbability;
         PNode *parentNode = new PNode();
         parentNode->huffmanProbability = newPriority;
-        parentNode->left = &left;
-        parentNode->right = &right;
+        parentNode->left = new PNode(left.value,left.frequency,left.left,left.right,left.prefix,left.huffmanProbability);
+        parentNode->right = new PNode(right.value,right.frequency,right.left,right.right,right.prefix,right.huffmanProbability);;
         priorityQueue.erase(priorityQueue.begin());
         priorityQueue.at(0) = *parentNode;
         sortHuffman(priorityQueue);
         // when root node is made it will have priority 1
         totalValue =newPriority;
+    //    cout << parentNode->left->value << endl;
         cout<< "priority -->"<< newPriority <<endl;
 
     }
 
-}
-
-
-// Adapted from https://docs.opencv.org/2.4/doc/tutorials/core/discrete_fourier_transform/discrete_fourier_transform.html
-Mat makeDFT(Mat I,const char *name){
-    Mat padded;                            //expand input image to optimal size
-    int m = getOptimalDFTSize( I.rows );
-    int n = getOptimalDFTSize( I.cols ); // on the border add zero values
-    copyMakeBorder(I, padded, 0, m - I.rows, 0, n - I.cols, BORDER_CONSTANT, Scalar::all(0));
-
-    Mat planes[] = {Mat_<float>(padded), Mat::zeros(padded.size(), CV_32F)};
-    Mat complexI;
-    merge(planes, 2, complexI);         // Add to the expanded another plane with zeros
-
-    dft(complexI, complexI);            // this way the result may fit in the source matrix
-
-    // compute the magnitude and switch to logarithmic scale
-    // => log(1 + sqrt(Re(DFT(I))^2 + Im(DFT(I))^2))
-    split(complexI, planes);                   // planes[0] = Re(DFT(I), planes[1] = Im(DFT(I))
-    magnitude(planes[0], planes[1], planes[0]);// planes[0] = magnitude
-    Mat magI = planes[0];
-
-    magI += Scalar::all(1);                    // switch to logarithmic scale
-    log(magI, magI);
-
-    swapQuadrants(magI);
-
-
-    normalize(magI, magI, 0, 1, CV_MINMAX); // Transform the matrix with float values into a
-    // viewable image form (float between values 0 and 1).
-
-
-    imshow(name, magI);
-    waitKey();
-
-    return complexI;
+    addPrefix(&priorityQueue.at(0),"");
 
 }
 
-void swapQuadrants(Mat& img){
-// crop the spectrum, if it has an odd number of rows or columns
-    img = img(Rect(0, 0, img.cols & -2, img.rows & -2));
-
-    // rearrange the quadrants of Fourier image  so that the origin is at the image center
-    int cx = img.cols/2;
-    int cy = img.rows/2;
-
-    Mat q0(img, Rect(0, 0, cx, cy));   // Top-Left - Create a ROI per quadrant
-    Mat q1(img, Rect(cx, 0, cx, cy));  // Top-Right
-    Mat q2(img, Rect(0, cy, cx, cy));  // Bottom-Left
-    Mat q3(img, Rect(cx, cy, cx, cy)); // Bottom-Right
-
-    Mat tmp;                           // swap quadrants (Top-Left with Bottom-Right)
-    q0.copyTo(tmp);
-    q3.copyTo(q0);
-    tmp.copyTo(q3);
-
-    q1.copyTo(tmp);                    // swap quadrant (Top-Right with Bottom-Left)
-    q2.copyTo(q1);
-    tmp.copyTo(q2);
+void addPrefix(PNode *root, String prefix){
+    //PNode node = root;
+    if(root->value != -1){
+        // leaf node
+        cout << root->value <<" : "<<prefix<<endl;
+        return;
+    }
+    else{
+        addPrefix(root->left, prefix + "0");
+        addPrefix(root->right, prefix + "1");
+    }
 }
 
 

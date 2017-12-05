@@ -11,5 +11,15 @@ PNode::PNode(int v,int f,int total) {
 }
 
 PNode::PNode() {
+    value = -1;
+}
+
+PNode::PNode(int v, int f, PNode *l, PNode *r, string p, float h) {
+    value = v;
+    frequency = f;
+    left = l;
+    right = r;
+    prefix = p;
+    huffmanProbability =h;
 
 }
