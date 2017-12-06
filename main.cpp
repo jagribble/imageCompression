@@ -15,6 +15,8 @@ void dImage(Mat& image, Mat& output,int flag);
 void compress(Mat& img);
 void de_Compress();
 void threeChannels(Mat& img, Mat& red, Mat& green, Mat& blue, Mat* rgbArray);
+int position(std::vector<int> numbers, int value);
+void sortFreq(std::vector<int>& numbers, std::vector<int>& freq);
 void huffman(Mat img);
 void addPrefix(PNode *root, String prefix, map<int,string> &huffmanTable);
 void getOutputString(map<int,string> &huffmanTable,Mat &img, string &outputString);
@@ -63,45 +65,16 @@ int main() {
     std::cout << "Hello, World!" << std::endl;
     Mat image = imread("../2small.ppm",CV_LOAD_IMAGE_COLOR);
     //Mat image = imread("../fish.jpg",CV_LOAD_IMAGE_COLOR);
-    imshow("fire",image);
-    waitKey();
-    Mat rgbArray[3];
 
-    Mat result_red(image.rows, image.cols, CV_8UC3);
-    Mat result_green(image.rows, image.cols, CV_8UC3);
-    Mat result_blue(image.rows, image.cols, CV_8UC3);
-    split(image,rgbArray);
-    threeChannels(image,result_red,result_green,result_blue,rgbArray);
-    /*imshow("fire red",result_red);
-    waitKey();
-    imshow("fire green",result_green);
-    waitKey();
-    imshow("fire blue",result_blue);
-    waitKey();*/
 
-    Mat dctImages[3];
-    for(int x=0;x<3;x++){
-        Mat dctImage;
-        Mat inImage = rgbArray[x];
 
-        dImage(inImage,dctImage,0);
-//        imshow("dct image", dctImage);
-//        waitKey();
-        dctImages[x] = dctImage;
-        Mat inverse;
-        dImage(dctImage,inverse,1);
-//        imshow("dct inverse",inverse);
-//        waitKey();
-    }
     compress(image);
     Mat imageChannels[3];
     split(image,imageChannels);
     imwrite("../output.jpg",image);
     huffman(image);
-   // huffmanDecode();
     de_Compress();
     imwrite("../decomp.jpg",image);
-    dctImages[0].convertTo(dctImages[0],CV_8U);
 
 //    Mat smallImage = Mat(image,Rect(0,0,110,70));
 //
@@ -159,11 +132,13 @@ void compress(Mat& img){
     Mat lum = Mat(8,8,CV_64FC1,&dataLum);
     Mat chrom = Mat(8,8,CV_64FC1,&dataChrom);
 
-    imshow("orig",img);
+    imshow("original",img);
     waitKey();
+    // convert Image from BGR to YCrCb
     cvtColor(img,img,COLOR_BGR2YCrCb);
     cout<<"cols->"<< img.cols<<endl;
     cout<<"x->"<< img.rows<<endl;
+    // loop through the image and split into blocks.
     for(int x=0;x<img.rows;x+=8){
         for(int y=0;y<img.cols;y+=8){
 
@@ -172,47 +147,50 @@ void compress(Mat& img){
                 vector<Mat> channels;
                 split(block,channels);
                 vector<Mat> outputChannels(channels.size());
+                //for each channel of the block
                 for(int p=0;p<block.channels();p++){
                     Mat channelBlock = channels[p];
                     channelBlock.convertTo(channelBlock,CV_64FC1);
+                    //subtract 128
                     subtract(channelBlock, 128.0, channelBlock);
-
+                    // DCT on the block for the channel
                     Mat blockDCT;
                     dct(channelBlock,channelBlock);
-
+                    // divide by the relevant quantization table
                     if(p==0){
                         //luminance
                         divide(channelBlock,lum,channelBlock);
                     }else{
                         divide(channelBlock,chrom,channelBlock);
                     }
+                    // add 128 to the block
                     add(channelBlock, 128.0, channelBlock);
                     channelBlock.convertTo(channelBlock,CV_8UC1);
                     outputChannels[p] = channelBlock;
 
                 }
+                // merge all channels for the block
                 merge(outputChannels,block);
 
             }
 
         }
-      //  cout << x<<endl;
+
     }
-
-
-   // merge(smallimages,img);
-    imshow("q",img);
+    //show the image
+    imshow("DCT + quantization ",img);
     waitKey();
 
 }
 
 void de_Compress(){
+    // Get the data from the text file and traverse the huffman encoding tree to get the relevant data
     Mat img = huffmanDecode();
     Mat lum = Mat(8,8,CV_64FC1,&dataLum);
     Mat chrom = Mat(8,8,CV_64FC1,&dataChrom);
 
-    imshow("into decompression",img);
-
+  //  imshow("into decompression",img);
+    // loop though each pixel of the image and divide it into blocks
     for(int x=0;x<img.rows;x+=8){
         for(int y=0;y<img.cols;y+=8){
 
@@ -221,10 +199,13 @@ void de_Compress(){
                 vector<Mat> channels;
                 split(block,channels);
                 vector<Mat> outputChannels(channels.size());
+                // seperate the image by channels
                 for(int p=0;p<block.channels();p++){
                     Mat channelBlock = channels[p];
                     channelBlock.convertTo(channelBlock,CV_64FC1);
+                    // subtract 128 from the block for this channel
                     subtract(channelBlock, 128.0, channelBlock);
+                    // multiply the block by the relevant quantization table
                     if(p==0){
                         //luminance
                         multiply(channelBlock,lum,channelBlock);
@@ -232,24 +213,27 @@ void de_Compress(){
                         multiply(channelBlock,chrom,channelBlock);
                     }
 
-
+                    // peform inverse DCT on the block
                     Mat blockDCT;
                     idct(channelBlock,blockDCT);
+                    // add 128 to the block
                     add(blockDCT, 128.0, blockDCT);
                     blockDCT.convertTo(blockDCT,CV_8UC1);
 
                     outputChannels[p] = blockDCT;
 
                 }
+                // merge all the channels to the block
                 merge(outputChannels,block);
 
             }
 
         }
-        //cout << x<<endl;
-    }
-    cvtColor(img,img,COLOR_YCrCb2BGR);
 
+    }
+    // Convert YCrCb to BGR
+    cvtColor(img,img,COLOR_YCrCb2BGR);
+    // show decompressed image
     imshow("inverse",img);
     waitKey();
 }
@@ -267,6 +251,7 @@ void dImage(Mat& image, Mat& output,int flag){
 
 }
 
+/* Sort the huffman priority vector through insertion sort*/
 void sortHuffman(vector<PNode>& array){
     int j;
     PNode temp;
@@ -288,8 +273,10 @@ void sortHuffman(vector<PNode>& array){
 
 
 void huffman(Mat img){
+    // vector of the numbers (intensity values) and frequencies of those (direct mapping)
     std::vector<int> numbers =  std::vector<int>();
     std::vector<int> freq =  std::vector<int>();
+    // set the width and height of the image to the global varibles
     width = img.size().width;
     height = img.size().height;
     // go through all the pixels in the image and get the value
@@ -362,13 +349,13 @@ void huffman(Mat img){
     }
 
     map<int,string> huffmanTable;
-
+    // add the prefixes to each value and put it in the huffman table
     addPrefix(&priorityQueue.at(0),"",huffmanTable);
     string outputString;
+    // get the bits from the huffman table for each pixels
     getOutputString(huffmanTable,img,outputString);
     string charString;
-   // getChars(outputString,charString);
-    //ostream stream(std::move(std::ostringstream()));
+    // get the bits and for each 8 bits (1 byte) get the character and store it to file
     stringstream sstream(outputString);
     while (sstream.good()){
         std::bitset<8> bits;
@@ -376,6 +363,7 @@ void huffman(Mat img){
         char c = char(bits.to_ulong());
         charString += c;
     }
+    // write the data to file
     ofstream outData("output.txt");
 
     outData << charString;
@@ -383,17 +371,17 @@ void huffman(Mat img){
 }
 
 void addPrefix(PNode *root, String prefix, map<int,string> &huffmanTable){
-    //PNode node = root;
+    // if there is a value then it must be a leaf node so add the prefix to the huffman table
     if(root->value != -1){
         // leaf node
         cout << root->value <<" : "<<prefix<<endl;
         PNode node = *root;
         root->prefix = prefix;
         huffmanTable[root->value] = prefix;
-        //&root->value->setPrefix(prefix);
         return;
     }
     else{
+        // if the value is -1 then go left and right.
         addPrefix(root->left, prefix + "0",huffmanTable);
         addPrefix(root->right, prefix + "1",huffmanTable);
     }
@@ -402,20 +390,14 @@ void addPrefix(PNode *root, String prefix, map<int,string> &huffmanTable){
 void getOutputString(map<int,string> &huffmanTable,Mat &img, string &outputString ){
     vector<Mat> channels;
     split(img,channels);
+    // get the output string
     for(int x=0;x<img.rows;x++){
-        // loop through each row for each channel
+        // loop through each row for each channel get the bit values from the huffman table for that inensity value
         for (int channel = 0; channel < channels.size(); ++channel) {
             for(int y=0;y<img.cols;y++){
                 outputString += huffmanTable[int(channels.at(channel).at<uchar>(x,y))];
             }
-            // for each channel append the channel type to the end of the string to tell which channel
-//            if (channel == 0){
-//                outputString += "/y";
-//            } else if (channel == 1){
-//                outputString += "/cr";
-//            } else{
-//                outputString += "/cb";
-//            }
+
         }
     }
 
@@ -423,7 +405,9 @@ void getOutputString(map<int,string> &huffmanTable,Mat &img, string &outputStrin
 
 
 Mat huffmanDecode(){
+    // decode the file
     ifstream file;
+    // open the file
     file.open("output.txt");
     char c;
     string binaryString;
@@ -431,16 +415,18 @@ Mat huffmanDecode(){
         // loop getting single characters
         bitset<8> byte = c;
         binaryString += byte.to_string();
-      //  std::cout << byte;
+
     }
-  //  cout << binaryString;
+    // if the string is not empty get the value from the binary string
     while(!binaryString.empty()){
         getValue(&priorityQueue.at(0),binaryString);
     }
     cout<<"Finished"<<endl;
+
     int arrayPos = 0;
     Mat img = Mat(height,width,CV_8UC3);
     cvtColor(img,img,COLOR_BGR2YCrCb);
+    // go through the image and get the value for each channel on that row.
     for(int x=0;x<img.rows;x++){
         vector<Mat> channels;
         split(img, channels);
@@ -466,19 +452,16 @@ void getValue(PNode *root, string &binary){
     // if there is value then reached leaf node and output to vector
     if(root->value != -1){
         // leaf node
-        //cout << "Leaf node value : " << root->value << endl;
         decodedValues.push_back(root->value);
-//        cout << root->value <<" : "<<prefix<<endl;
-//        PNode node = *root;
-//        root->prefix = prefix;
-       // huffmanTable[root->value] = prefix;
-        //&root->value->setPrefix(prefix);
+
         return;
     }
     else{
+        // if it's a 0 then go left
         if(!binary.empty() && binary.at(0) == '0'){
             binary.erase(0,1);
             getValue(root->left, binary);
+            // if 1 then go right
         } else if(!binary.empty() && binary.at(0) == '1'){
             binary.erase(0,1);
             getValue(root->right, binary);
