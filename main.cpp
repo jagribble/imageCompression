@@ -1,5 +1,6 @@
 #include <opencv2/opencv.hpp>
 #include "Node.h"
+#include "bitstring.h"
 #include <opencv2/highgui/highgui.hpp>
 
 using namespace cv;
@@ -12,11 +13,20 @@ void swapQuadrants(Mat& img);
 void dImage(Mat& image, Mat& output,int flag);
 
 void compress(Mat& img);
-void de_Compress(Mat& img);
+void de_Compress();
 void threeChannels(Mat& img, Mat& red, Mat& green, Mat& blue, Mat* rgbArray);
 void huffman(Mat img);
-void addPrefix(PNode *root, String prefix);
+void addPrefix(PNode *root, String prefix, map<int,string> &huffmanTable);
+void getOutputString(map<int,string> &huffmanTable,Mat &img, string &outputString);
 void sortHuffman(vector<PNode>& array);
+
+
+Mat huffmanDecode();
+void getValue(PNode *root, string &binary);
+
+vector<PNode> priorityQueue;
+vector<int> decodedValues;
+int width,height;
 
 double dataLum[8][8] = {
         {16, 11, 10, 16, 24, 40, 51, 61},
@@ -51,8 +61,8 @@ double dataChrom[8][8] = {
 
 int main() {
     std::cout << "Hello, World!" << std::endl;
-    Mat image = imread("../2.ppm",CV_LOAD_IMAGE_COLOR);
-   // Mat image = imread("../fish.jpg",CV_LOAD_IMAGE_COLOR);
+    Mat image = imread("../2small.ppm",CV_LOAD_IMAGE_COLOR);
+    //Mat image = imread("../fish.jpg",CV_LOAD_IMAGE_COLOR);
     imshow("fire",image);
     waitKey();
     Mat rgbArray[3];
@@ -87,7 +97,9 @@ int main() {
     Mat imageChannels[3];
     split(image,imageChannels);
     imwrite("../output.jpg",image);
-    de_Compress(image);
+    huffman(image);
+   // huffmanDecode();
+    de_Compress();
     imwrite("../decomp.jpg",image);
     dctImages[0].convertTo(dctImages[0],CV_8U);
 
@@ -97,7 +109,7 @@ int main() {
 //    waitKey();
     //makeDFT(rgbArray[0],"dft");
 
-    huffman(imageChannels[0]);
+
     return 0;
 }
 
@@ -194,8 +206,8 @@ void compress(Mat& img){
 
 }
 
-void de_Compress(Mat& img){
-
+void de_Compress(){
+    Mat img = huffmanDecode();
     Mat lum = Mat(8,8,CV_64FC1,&dataLum);
     Mat chrom = Mat(8,8,CV_64FC1,&dataChrom);
 
@@ -278,22 +290,30 @@ void sortHuffman(vector<PNode>& array){
 void huffman(Mat img){
     std::vector<int> numbers =  std::vector<int>();
     std::vector<int> freq =  std::vector<int>();
+    width = img.size().width;
+    height = img.size().height;
     // go through all the pixels in the image and get the value
     // if the value is already stored then add 1 to it's frequency
+    vector<Mat> channels;
+    split(img,channels);
     for(int x=0;x<img.rows;x++){
         for(int y=0;y<img.cols;y++){
-            int value = int(img.at<uchar>(x,y));
-           // std::cout << value << std::endl;
 
-            if(find(numbers.begin(), numbers.end(), value) != numbers.end()){
-                // add frequency
-                int pos = position(numbers,value);
-           //     std::cout << value << " at " << pos << " vector size >>>"<<numbers.size()<<std::endl;
-                freq.at(pos) = freq.at(pos) +1;
+            for(int channel=0;channel<channels.size();channel++){
 
-            } else{
-                numbers.push_back(int(img.at<uchar>(x,y)));
-                freq.push_back(1);
+                int value = int(channels.at(channel).at<uchar>(x,y));
+
+
+                if(find(numbers.begin(), numbers.end(), value) != numbers.end()){
+                    // add frequency
+                    int pos = position(numbers,value);
+
+                    freq.at(pos) = freq.at(pos) +1;
+
+                } else{
+                    numbers.push_back(int(channels.at(channel).at<uchar>(x,y)));
+                    freq.push_back(1);
+                }
             }
 
         }
@@ -306,26 +326,31 @@ void huffman(Mat img){
     for(int x= int(numbers.size() - 1); x >= 0; x--){
         std::cout << "| "<<numbers.at(x)<<" | "<<freq.at(x)<<" |"<<std::endl;
     }
+
     // create nodes for each value
-    vector<PNode> priorityQueue;
+
     for(int x=0;x<freq.size();x++){
         int pixels = img.rows*img.cols;
         PNode node = PNode(numbers.at(x),freq.at(x),pixels);
         priorityQueue.push_back(node);
     }
     cout<<"first in the array is vale=->"<<priorityQueue.at(0).value <<endl;
+    // sort the priority queue to get it in lowest priority at value 0
     sortHuffman(priorityQueue);
     float totalValue = 0;
     //make huffman encoding tree
     while(totalValue<1){
+        // get the first two nodes and put them on the left and right of a new parent node
         PNode left = priorityQueue.at(0);
         PNode right = priorityQueue.at(1);
         cout << "Left: "<<left.huffmanProbability<<" right: "<<right.huffmanProbability<<endl;
+        // add the frequency left and right probabilities
         float newPriority = left.huffmanProbability + right.huffmanProbability;
         PNode *parentNode = new PNode();
         parentNode->huffmanProbability = newPriority;
         parentNode->left = new PNode(left.value,left.frequency,left.left,left.right,left.prefix,left.huffmanProbability);
         parentNode->right = new PNode(right.value,right.frequency,right.left,right.right,right.prefix,right.huffmanProbability);;
+        // add the parent node to the priority queue and then sort the list again
         priorityQueue.erase(priorityQueue.begin());
         priorityQueue.at(0) = *parentNode;
         sortHuffman(priorityQueue);
@@ -336,21 +361,128 @@ void huffman(Mat img){
 
     }
 
-    addPrefix(&priorityQueue.at(0),"");
+    map<int,string> huffmanTable;
+
+    addPrefix(&priorityQueue.at(0),"",huffmanTable);
+    string outputString;
+    getOutputString(huffmanTable,img,outputString);
+    string charString;
+   // getChars(outputString,charString);
+    //ostream stream(std::move(std::ostringstream()));
+    stringstream sstream(outputString);
+    while (sstream.good()){
+        std::bitset<8> bits;
+        sstream >> bits;
+        char c = char(bits.to_ulong());
+        charString += c;
+    }
+    ofstream outData("output.txt");
+
+    outData << charString;
 
 }
 
-void addPrefix(PNode *root, String prefix){
+void addPrefix(PNode *root, String prefix, map<int,string> &huffmanTable){
     //PNode node = root;
     if(root->value != -1){
         // leaf node
         cout << root->value <<" : "<<prefix<<endl;
+        PNode node = *root;
+        root->prefix = prefix;
+        huffmanTable[root->value] = prefix;
+        //&root->value->setPrefix(prefix);
         return;
     }
     else{
-        addPrefix(root->left, prefix + "0");
-        addPrefix(root->right, prefix + "1");
+        addPrefix(root->left, prefix + "0",huffmanTable);
+        addPrefix(root->right, prefix + "1",huffmanTable);
     }
 }
 
+void getOutputString(map<int,string> &huffmanTable,Mat &img, string &outputString ){
+    vector<Mat> channels;
+    split(img,channels);
+    for(int x=0;x<img.rows;x++){
+        // loop through each row for each channel
+        for (int channel = 0; channel < channels.size(); ++channel) {
+            for(int y=0;y<img.cols;y++){
+                outputString += huffmanTable[int(channels.at(channel).at<uchar>(x,y))];
+            }
+            // for each channel append the channel type to the end of the string to tell which channel
+//            if (channel == 0){
+//                outputString += "/y";
+//            } else if (channel == 1){
+//                outputString += "/cr";
+//            } else{
+//                outputString += "/cb";
+//            }
+        }
+    }
 
+}
+
+
+Mat huffmanDecode(){
+    ifstream file;
+    file.open("output.txt");
+    char c;
+    string binaryString;
+    while (file.get(c))  {
+        // loop getting single characters
+        bitset<8> byte = c;
+        binaryString += byte.to_string();
+      //  std::cout << byte;
+    }
+  //  cout << binaryString;
+    while(!binaryString.empty()){
+        getValue(&priorityQueue.at(0),binaryString);
+    }
+    cout<<"Finished"<<endl;
+    int arrayPos = 0;
+    Mat img = Mat(height,width,CV_8UC3);
+    cvtColor(img,img,COLOR_BGR2YCrCb);
+    for(int x=0;x<img.rows;x++){
+        vector<Mat> channels;
+        split(img, channels);
+        for(int channel = 0; channel < channels.size(); channel++){
+            for(int y=0;y<img.cols;y++){
+                channels[channel].at<uchar>(x,y) = static_cast<uchar>(decodedValues[arrayPos]);
+                arrayPos++;
+            }
+        }
+        merge(channels,img);
+
+    }
+    imshow("image after decoded",img);
+    waitKey();
+
+    return img;
+
+
+}
+
+
+void getValue(PNode *root, string &binary){
+    // if there is value then reached leaf node and output to vector
+    if(root->value != -1){
+        // leaf node
+        //cout << "Leaf node value : " << root->value << endl;
+        decodedValues.push_back(root->value);
+//        cout << root->value <<" : "<<prefix<<endl;
+//        PNode node = *root;
+//        root->prefix = prefix;
+       // huffmanTable[root->value] = prefix;
+        //&root->value->setPrefix(prefix);
+        return;
+    }
+    else{
+        if(!binary.empty() && binary.at(0) == '0'){
+            binary.erase(0,1);
+            getValue(root->left, binary);
+        } else if(!binary.empty() && binary.at(0) == '1'){
+            binary.erase(0,1);
+            getValue(root->right, binary);
+        }
+        return;
+    }
+}

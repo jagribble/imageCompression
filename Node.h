@@ -17,6 +17,7 @@ class PNode {
         PNode *right;
         string prefix;
         float huffmanProbability;
+        void setPrefix(string p);
         PNode(int v,int f,int total);
         PNode();
         PNode(int v, int f, PNode *l, PNode *r, string p, float h);

@@ -19,6 +19,8 @@ opencv2/opencv.hpp
 -
 Node.h
 /Users/G/Desktop/Year3/ImageAnalysis/ImageCompression/Node.h
+bitstring.h
+/Users/G/Desktop/Year3/ImageAnalysis/ImageCompression/bitstring.h
 opencv2/highgui/highgui.hpp
 -
 

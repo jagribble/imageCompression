@@ -23,3 +23,8 @@ PNode::PNode(int v, int f, PNode *l, PNode *r, string p, float h) {
     huffmanProbability =h;
 
 }
+
+void PNode::setPrefix(string p) {
+    this->prefix = p;
+}
+
