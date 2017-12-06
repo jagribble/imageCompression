@@ -477,10 +477,12 @@ void getValue(PNode *root, string &binary){
 
 
 void compressionRatio(string input){
+    // get input and output file and seek to the end of file
     ifstream inputFile(input,ifstream::in | ifstream::binary);
     inputFile.seekg(0, ios::end);
     ifstream outputFile("output.txt",ifstream::in | ifstream::binary);
     outputFile.seekg(0, ios::end);
+    // work out the compression ratio and show to screen
     float compressionRatio = inputFile.tellg()/outputFile.tellg();
     cout << "original file size -> "<<inputFile.tellg()<<endl;
     cout << "Compressed file size -> "<<outputFile.tellg()<<endl;
