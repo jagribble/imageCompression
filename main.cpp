@@ -11,10 +11,11 @@ Mat makeDFT(Mat I,const char *name);
 void swapQuadrants(Mat& img);
 
 void dImage(Mat& image, Mat& output,int flag);
+void threeChannels(Mat& img, Mat& red, Mat& green, Mat& blue, Mat* rgbArray);
 
 void compress(Mat& img);
 void de_Compress();
-void threeChannels(Mat& img, Mat& red, Mat& green, Mat& blue, Mat* rgbArray);
+
 int position(std::vector<int> numbers, int value);
 void sortFreq(std::vector<int>& numbers, std::vector<int>& freq);
 void huffman(Mat img);
@@ -26,9 +27,12 @@ void sortHuffman(vector<PNode>& array);
 Mat huffmanDecode();
 void getValue(PNode *root, string &binary);
 
+void compressionRatio(string input);
+
 vector<PNode> priorityQueue;
 vector<int> decodedValues;
 int width,height;
+
 
 double dataLum[8][8] = {
         {16, 11, 10, 16, 24, 40, 51, 61},
@@ -62,11 +66,10 @@ double dataChrom[8][8] = {
 };
 
 int main() {
+    string inputString = "../2small.ppm";
     std::cout << "Hello, World!" << std::endl;
-    Mat image = imread("../2small.ppm",CV_LOAD_IMAGE_COLOR);
+    Mat image = imread(inputString,CV_LOAD_IMAGE_COLOR);
     //Mat image = imread("../fish.jpg",CV_LOAD_IMAGE_COLOR);
-
-
 
     compress(image);
     Mat imageChannels[3];
@@ -74,7 +77,7 @@ int main() {
     imwrite("../output.jpg",image);
     huffman(image);
     de_Compress();
-    imwrite("../decomp.jpg",image);
+    compressionRatio(inputString);
 
 //    Mat smallImage = Mat(image,Rect(0,0,110,70));
 //
@@ -234,8 +237,9 @@ void de_Compress(){
     // Convert YCrCb to BGR
     cvtColor(img,img,COLOR_YCrCb2BGR);
     // show decompressed image
-    imshow("inverse",img);
+    imshow("decompressed",img);
     waitKey();
+    imwrite("../decomp.ppm",img);
 }
 
 
@@ -367,6 +371,7 @@ void huffman(Mat img){
     ofstream outData("output.txt");
 
     outData << charString;
+    outData.close();
 
 }
 
@@ -468,4 +473,18 @@ void getValue(PNode *root, string &binary){
         }
         return;
     }
+}
+
+
+void compressionRatio(string input){
+    ifstream inputFile(input,ifstream::in | ifstream::binary);
+    inputFile.seekg(0, ios::end);
+    ifstream outputFile("output.txt",ifstream::in | ifstream::binary);
+    outputFile.seekg(0, ios::end);
+    float compressionRatio = inputFile.tellg()/outputFile.tellg();
+    cout << "original file size -> "<<inputFile.tellg()<<endl;
+    cout << "Compressed file size -> "<<outputFile.tellg()<<endl;
+    cout << "Compression Ratio = " << compressionRatio<< endl;
+    inputFile.close();
+    outputFile.close();
 }
