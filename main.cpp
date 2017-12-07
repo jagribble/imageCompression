@@ -293,7 +293,7 @@ void huffman(Mat img){
     // create nodes for each value
 
     for(int x=0;x<freq.size();x++){
-        int pixels = img.rows*img.cols;
+        int pixels = img.rows*img.cols*3;
         PNode node = PNode(numbers.at(x),freq.at(x),pixels);
         priorityQueue.push_back(node);
     }
