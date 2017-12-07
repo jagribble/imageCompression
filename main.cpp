@@ -6,15 +6,8 @@
 using namespace cv;
 
 
-// dft
-Mat makeDFT(Mat I,const char *name);
-void swapQuadrants(Mat& img);
-
-void dImage(Mat& image, Mat& output,int flag);
-void threeChannels(Mat& img, Mat& red, Mat& green, Mat& blue, Mat* rgbArray);
-
 void compress(Mat& img);
-void de_Compress();
+void de_Compress(Mat &img);
 
 int position(std::vector<int> numbers, int value);
 void sortFreq(std::vector<int>& numbers, std::vector<int>& freq);
@@ -28,6 +21,7 @@ Mat huffmanDecode();
 void getValue(PNode *root, string &binary);
 
 void compressionRatio(string input);
+void meanSquareError(Mat &original, Mat &decompressed);
 
 vector<PNode> priorityQueue;
 vector<int> decodedValues;
@@ -44,16 +38,7 @@ double dataLum[8][8] = {
         {49, 64, 78, 87, 103, 121, 120, 101},
         {72, 92, 95, 98, 112, 100, 103, 99}
 };
-//    int data[8][8] = {
-//            {1, 1, 1, 1, 0, 0, 0, 0},
-//            {1, 1, 1, 0, 0, 0, 0, 0},
-//            {1, 1, 0, 0, 0, 0, 0, 0},
-//            {1, 0, 0, 0, 0, 0, 0, 0},
-//            {0, 0, 0, 0, 0, 0, 0, 0},
-//            {0, 0, 0, 0, 0, 0, 0, 0},
-//            {0, 0, 0, 0, 0, 0, 0, 0},
-//            {0, 0, 0, 0, 0, 0, 0, 0}
-//    };
+
 double dataChrom[8][8] = {
         {17, 18, 24, 27, 99, 99, 99, 99},
         {18, 21, 26, 66, 99, 99, 99, 99},
@@ -76,30 +61,14 @@ int main() {
     split(image,imageChannels);
     imwrite("../output.jpg",image);
     huffman(image);
-    de_Compress();
+    Mat decompressedImage;
+    de_Compress(decompressedImage);
     compressionRatio(inputString);
-
-//    Mat smallImage = Mat(image,Rect(0,0,110,70));
-//
-//    imshow("small block", smallImage);
-//    waitKey();
-    //makeDFT(rgbArray[0],"dft");
-
+    meanSquareError(image,decompressedImage);
 
     return 0;
 }
 
-void threeChannels(Mat& img, Mat& red, Mat& green, Mat& blue, Mat* rgbArray){
-    Mat empty_image = Mat::zeros(img.size(), CV_8UC1);
-    Mat inBlue[] =  { rgbArray[0], empty_image, empty_image};
-    Mat inGreen[] =  { empty_image, rgbArray[1], empty_image};
-    Mat inRed[] = { empty_image, empty_image, rgbArray[2]};
-    int from_to[] = { 0,0, 1,1, 2,2 };
-    mixChannels(inBlue,3,&blue,1,from_to,3);
-    mixChannels(inGreen,3,&green,1,from_to,3);
-    mixChannels( inRed, 3, &red, 1, from_to, 3 );
-
-}
 
 int position(std::vector<int> numbers, int value){
     int x=0;
@@ -135,6 +104,7 @@ void compress(Mat& img){
     Mat lum = Mat(8,8,CV_64FC1,&dataLum);
     Mat chrom = Mat(8,8,CV_64FC1,&dataChrom);
 
+    namedWindow("original",CV_WINDOW_AUTOSIZE);
     imshow("original",img);
     waitKey();
     // convert Image from BGR to YCrCb
@@ -181,14 +151,15 @@ void compress(Mat& img){
 
     }
     //show the image
+    namedWindow("DCT + quantization ",CV_WINDOW_AUTOSIZE);
     imshow("DCT + quantization ",img);
     waitKey();
 
 }
 
-void de_Compress(){
+void de_Compress(Mat &img){
     // Get the data from the text file and traverse the huffman encoding tree to get the relevant data
-    Mat img = huffmanDecode();
+    img = huffmanDecode();
     Mat lum = Mat(8,8,CV_64FC1,&dataLum);
     Mat chrom = Mat(8,8,CV_64FC1,&dataChrom);
 
@@ -237,6 +208,7 @@ void de_Compress(){
     // Convert YCrCb to BGR
     cvtColor(img,img,COLOR_YCrCb2BGR);
     // show decompressed image
+    namedWindow("decompressed",CV_WINDOW_AUTOSIZE);
     imshow("decompressed",img);
     waitKey();
     imwrite("../decomp.ppm",img);
@@ -444,6 +416,7 @@ Mat huffmanDecode(){
         merge(channels,img);
 
     }
+    namedWindow("image after decoded",CV_WINDOW_AUTOSIZE);
     imshow("image after decoded",img);
     waitKey();
 
@@ -489,4 +462,28 @@ void compressionRatio(string input){
     cout << "Compression Ratio = " << compressionRatio<< endl;
     inputFile.close();
     outputFile.close();
+}
+
+// check the mean square error of all channels. MSE of 0 means it is the same as the original image (lossless)
+void meanSquareError(Mat &original, Mat &decompressed){
+    int sum = 0;
+    int no = 0;
+    for (int x=0;x<original.rows;x++){
+        // split the original and compressed images into different channels
+        vector<Mat> originalChannels;
+        split(original,originalChannels);
+        vector<Mat> decompressedChannels;
+        split(decompressed,decompressedChannels);
+        for(int channel=0;channel<originalChannels.size();channel++){
+            // for each pixel on the row add to the sum the different^2 of each pixel
+            for(int y=0;y<original.cols;y++){
+                int difference = originalChannels.at(channel).at<uchar>(x,y)-decompressedChannels.at(channel).at<uchar>(x,y);
+                sum+= pow(difference,2);
+                no++;
+            }
+        }
+    }
+    float mse = sum/(original.rows * original.cols*3);
+    cout << "MSE = " << mse <<endl;
+
 }
